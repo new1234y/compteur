@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Tasbih</title>
+    
+    <!-- PWA Meta tags & Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Tasbih">
+    <link rel="icon" type="image/svg+xml" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.svg">
+
     <style>
         :root {
             --bg-color: #121212;
@@ -38,6 +48,7 @@
         /* --- VUE PRINCIPALE --- */
         header { display: flex; justify-content: space-between; align-items: center; padding: 20px; }
         .app-title { font-size: 20px; font-weight: bold; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
         .btn-icon {
             background: var(--surface-light); border: none; color: var(--text-color);
             width: 45px; height: 45px; border-radius: 50%; font-size: 20px; cursor: pointer;
@@ -92,14 +103,9 @@
         .history-header { display: flex; align-items: center; padding: 20px; background-color: var(--surface-color); border-bottom: 1px solid #333; gap: 15px; }
         .table-container { flex: 1; overflow: auto; padding: 20px; }
         
-        .matrix-table {
-            border-collapse: collapse; width: 100%; white-space: nowrap;
-        }
-        .matrix-table th, .matrix-table td {
-            padding: 12px 15px; text-align: center; border: 1px solid #444; font-size: 14px;
-        }
+        .matrix-table { border-collapse: collapse; width: 100%; white-space: nowrap; }
+        .matrix-table th, .matrix-table td { padding: 12px 15px; text-align: center; border: 1px solid #444; font-size: 14px; }
         
-        /* Colonne de gauche fixée (Invocations) */
         .matrix-table th:first-child, .matrix-table td:first-child {
             position: sticky; left: 0; background-color: var(--surface-color);
             z-index: 2; text-align: left; font-weight: bold; max-width: 200px;
@@ -120,8 +126,16 @@
         .modal-content { background-color: var(--surface-color); width: 100%; max-width: 400px; border-radius: var(--border-radius); padding: 25px; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .modal-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
-        input { width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #444; background-color: var(--surface-light); color: white; font-size: 16px; margin-bottom: 15px; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #444; background-color: var(--surface-light); color: white; font-size: 16px; margin-bottom: 15px; }
         .btn-block { width: 100%; padding: 15px; background-color: var(--primary-color); color: #000; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; }
+
+        /* Bouton d'installation PWA */
+        #btn-install {
+            display: none;
+            background-color: var(--primary-color);
+            color: #000;
+            font-size: 18px;
+        }
     </style>
 </head>
 <body>
@@ -130,7 +144,10 @@
     <div id="view-main" class="view active">
         <header>
             <div class="app-title">Tasbih</div>
-            <button class="btn-icon" onclick="switchView('history')" title="Historique complet">📊</button>
+            <div class="header-actions">
+                <button class="btn-icon" id="btn-install" title="Installer l'application">📥</button>
+                <button class="btn-icon" onclick="switchView('history')" title="Historique complet">📊</button>
+            </div>
         </header>
 
         <main>
@@ -179,6 +196,42 @@
     </div>
 
     <script>
+        // Enregistrement du Service Worker pour le mode Web App / Hors-ligne
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker enregistré !', reg))
+                    .catch(err => console.log('Erreur Service Worker :', err));
+            });
+        }
+
+        // Gestion de l'installation "Ajouter à l'écran d'accueil"
+        let deferredPrompt;
+        const btnInstall = document.getElementById('btn-install');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            btnInstall.style.display = 'flex';
+        });
+
+        btnInstall.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('Application installée');
+                }
+                deferredPrompt = null;
+                btnInstall.style.display = 'none';
+            }
+        });
+
+        window.addEventListener('appinstalled', () => {
+            btnInstall.style.display = 'none';
+            console.log('Tasbih a été installé avec succès.');
+        });
+
         let appData = {
             objectives: [
                 { id: 1, evocation: "Subhanallah", target: 33 }
@@ -349,7 +402,6 @@
                     const count = dataObj ? dataObj.count : 0;
                     
                     const scoreClass = count >= target && count > 0 ? "score-good" : (count === 0 ? "score-zero" : "");
-                    // Affichage du format "compte / objectif"
                     tbodyHTML += `<td class="${scoreClass}">${count} / ${target}</td>`;
                 });
                 tbodyHTML += `</tr>`;
