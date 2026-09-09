@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Tasbih</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --surface-color: #1e1e1e;
+            --surface-light: #2c2c2c;
+            --primary-color: #4ade80;
+            --text-color: #ffffff;
+            --text-muted: #a3a3a3;
+            --border-radius: 20px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Vues de l'application */
+        .view {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+        }
+        .view.active { display: flex; }
+
+        /* --- VUE PRINCIPALE --- */
+        header { display: flex; justify-content: space-between; align-items: center; padding: 20px; }
+        .app-title { font-size: 20px; font-weight: bold; }
+        .btn-icon {
+            background: var(--surface-light); border: none; color: var(--text-color);
+            width: 45px; height: 45px; border-radius: 50%; font-size: 20px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .evocation-text { font-size: 26px; font-weight: 600; text-align: center; margin-bottom: 5px; }
+        .target-text { color: var(--text-muted); font-size: 16px; margin-bottom: 30px; }
+        
+        .progress-bar-bg {
+            width: 100%; max-width: 300px; height: 6px; background-color: var(--surface-light);
+            border-radius: 3px; margin-bottom: 30px; overflow: hidden;
+        }
+        .progress-bar-fill { height: 100%; background-color: var(--primary-color); width: 0%; transition: width 0.3s ease; }
+
+        .count-display {
+            font-size: 80px; font-weight: bold; font-family: monospace; background-color: var(--surface-color);
+            padding: 10px 40px; border-radius: var(--border-radius); margin-bottom: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); letter-spacing: 2px;
+        }
+
+        .btn-main {
+            width: 160px; height: 160px; border-radius: 50%; background-color: var(--primary-color);
+            border: none; cursor: pointer; box-shadow: 0 0 30px rgba(74, 222, 128, 0.3); transition: transform 0.1s;
+        }
+        .btn-main:active { transform: scale(0.92); }
+
+        .btn-reset {
+            background: none; border: none; color: var(--text-muted); font-size: 16px;
+            margin-top: 30px; cursor: pointer; padding: 10px;
+        }
+
+        footer { padding: 20px; background-color: var(--surface-color); border-top-left-radius: var(--border-radius); border-top-right-radius: var(--border-radius); }
+        .objectives-slider { display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
+        .objectives-slider::-webkit-scrollbar { display: none; }
+        
+        .obj-chip {
+            background-color: var(--surface-light); padding: 15px 20px; border-radius: 15px;
+            min-width: 140px; cursor: pointer; border: 2px solid transparent; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .obj-chip.active { border-color: var(--primary-color); }
+        .obj-chip .name { font-weight: bold; font-size: 14px; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .obj-chip .stats { color: var(--text-muted); font-size: 12px; }
+        .obj-chip .btn-del { background: none; border: none; color: #ff5555; font-size: 14px; cursor: pointer; margin-top: 5px; text-align: left; }
+        
+        .btn-add-obj {
+            background-color: transparent; border: 2px dashed var(--text-muted); color: var(--text-muted);
+            min-width: 80px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer;
+        }
+
+        /* --- VUE HISTORIQUE --- */
+        .history-header { display: flex; align-items: center; padding: 20px; background-color: var(--surface-color); border-bottom: 1px solid #333; gap: 15px; }
+        .table-container { flex: 1; overflow: auto; padding: 20px; }
+        
+        .matrix-table {
+            border-collapse: collapse; width: 100%; white-space: nowrap;
+        }
+        .matrix-table th, .matrix-table td {
+            padding: 12px 15px; text-align: center; border: 1px solid #444; font-size: 14px;
+        }
+        
+        /* Colonne de gauche fixée (Invocations) */
+        .matrix-table th:first-child, .matrix-table td:first-child {
+            position: sticky; left: 0; background-color: var(--surface-color);
+            z-index: 2; text-align: left; font-weight: bold; max-width: 200px;
+            overflow: hidden; text-overflow: ellipsis; border-right: 2px solid var(--primary-color);
+        }
+        .matrix-table th { background-color: var(--surface-light); position: sticky; top: 0; z-index: 1; color: var(--text-muted); }
+        .matrix-table th:first-child { z-index: 3; }
+
+        .score-good { color: var(--primary-color); font-weight: bold; }
+        .score-zero { color: #555; }
+
+        .settings-bar { padding: 20px; display: flex; gap: 10px; background-color: var(--surface-color); border-top: 1px solid #333; }
+        .btn-secondary { flex: 1; padding: 12px; background-color: var(--surface-light); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+
+        /* --- MODAL AJOUT OBJECTIF --- */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
+        .modal.show { display: flex; }
+        .modal-content { background-color: var(--surface-color); width: 100%; max-width: 400px; border-radius: var(--border-radius); padding: 25px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; }
+        input { width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #444; background-color: var(--surface-light); color: white; font-size: 16px; margin-bottom: 15px; }
+        .btn-block { width: 100%; padding: 15px; background-color: var(--primary-color); color: #000; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <!-- VUE 1 : COMPTEUR PRINCIPAL -->
+    <div id="view-main" class="view active">
+        <header>
+            <div class="app-title">Tasbih</div>
+            <button class="btn-icon" onclick="switchView('history')" title="Historique complet">📊</button>
+        </header>
+
+        <main>
+            <div class="evocation-text" id="display-evocation">...</div>
+            <div class="target-text" id="display-target">Objectif : 0</div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-bar"></div></div>
+            <div class="count-display" id="display-count">0000</div>
+            <button class="btn-main" onclick="incrementCounter()"></button>
+            <button class="btn-reset" onclick="resetTodayCounter()">↺ Zéro pour aujourd'hui</button>
+        </main>
+
+        <footer>
+            <div class="objectives-slider" id="objectives-list"></div>
+        </footer>
+    </div>
+
+    <!-- VUE 2 : PAGE HISTORIQUE COMPLET -->
+    <div id="view-history" class="view">
+        <div class="history-header">
+            <button class="btn-icon" onclick="switchView('main')" title="Retour">⬅</button>
+            <div class="app-title">Historique Global</div>
+        </div>
+
+        <div class="table-container">
+            <table class="matrix-table" id="history-table"></table>
+        </div>
+
+        <div class="settings-bar">
+            <button class="btn-secondary" onclick="exportData()">Exporter</button>
+            <input type="file" id="import-file" style="display: none;" onchange="importData(event)">
+            <button class="btn-secondary" onclick="document.getElementById('import-file').click()">Importer</button>
+        </div>
+    </div>
+
+    <!-- MODAL : Ajouter Objectif -->
+    <div id="modal-add" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nouvel Objectif</h3>
+                <button class="modal-close" onclick="closeModal('modal-add')">×</button>
+            </div>
+            <input type="text" id="new-evocation" placeholder="Évocation (ex: Subhanallah)">
+            <input type="number" id="new-target" placeholder="Objectif (ex: 33)">
+            <button class="btn-block" onclick="addObjective()">Créer l'objectif</button>
+        </div>
+    </div>
+
+    <script>
+        let appData = {
+            objectives: [
+                { id: 1, evocation: "Subhanallah", target: 33 }
+            ],
+            selectedObjectiveId: 1,
+            progress: {} 
+        };
+
+        function getTodayDate() {
+            const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
+            return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+        }
+
+        function saveData() { localStorage.setItem('tasbihV3', JSON.stringify(appData)); }
+
+        function loadData() {
+            const saved = localStorage.getItem('tasbihV3') || localStorage.getItem('tasbihV2');
+            if (saved) appData = JSON.parse(saved);
+            initTodayProgress();
+        }
+
+        function switchView(viewName) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('view-' + viewName).classList.add('active');
+            if (viewName === 'history') buildHistoryTable();
+        }
+
+        function initTodayProgress() {
+            const today = getTodayDate();
+            if (!appData.progress[today]) appData.progress[today] = {};
+            
+            appData.objectives.forEach(obj => {
+                if (!appData.progress[today][obj.id]) {
+                    appData.progress[today][obj.id] = { evocation: obj.evocation, target: obj.target, count: 0 };
+                } else {
+                    appData.progress[today][obj.id].evocation = obj.evocation;
+                    appData.progress[today][obj.id].target = obj.target;
+                }
+            });
+            saveData();
+        }
+
+        function getTodayCount(objId) {
+            return appData.progress[getTodayDate()]?.[objId]?.count || 0;
+        }
+
+        function updateUI() {
+            const obj = appData.objectives.find(o => o.id === appData.selectedObjectiveId);
+            const dEvo = document.getElementById('display-evocation');
+            const dTarget = document.getElementById('display-target');
+            const dCount = document.getElementById('display-count');
+            const pBar = document.getElementById('progress-bar');
+
+            if (obj) {
+                const count = getTodayCount(obj.id);
+                dEvo.innerText = obj.evocation; dTarget.innerText = `Objectif : ${obj.target}`;
+                dCount.innerText = count.toString().padStart(4, '0');
+                pBar.style.width = `${Math.min(obj.target > 0 ? (count / obj.target) * 100 : 0, 100)}%`;
+            } else {
+                dEvo.innerText = "Ajoutez un objectif"; dTarget.innerText = ""; dCount.innerText = "0000"; pBar.style.width = "0%";
+            }
+            renderObjectives();
+        }
+
+        function renderObjectives() {
+            const list = document.getElementById('objectives-list');
+            list.innerHTML = '';
+
+            const btnAdd = document.createElement('button');
+            btnAdd.className = 'btn-add-obj'; btnAdd.innerText = '+';
+            btnAdd.onclick = () => document.getElementById('modal-add').classList.add('show');
+            list.appendChild(btnAdd);
+
+            appData.objectives.forEach(obj => {
+                const count = getTodayCount(obj.id);
+                const div = document.createElement('div');
+                div.className = `obj-chip ${obj.id === appData.selectedObjectiveId ? 'active' : ''}`;
+                div.onclick = () => { appData.selectedObjectiveId = obj.id; saveData(); updateUI(); };
+                
+                div.innerHTML = `
+                    <div class="name">${obj.evocation}</div>
+                    <div class="stats">${count} / ${obj.target}</div>
+                    <button class="btn-del" onclick="deleteObjective(${obj.id}, event)">Supprimer</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function incrementCounter() {
+            if (!appData.selectedObjectiveId) return;
+            const today = getTodayDate();
+            initTodayProgress(); 
+            appData.progress[today][appData.selectedObjectiveId].count++;
+            
+            const obj = appData.objectives.find(o => o.id === appData.selectedObjectiveId);
+            const currentCount = appData.progress[today][appData.selectedObjectiveId].count;
+            
+            if (navigator.vibrate) currentCount === obj.target ? navigator.vibrate([100, 50, 100]) : navigator.vibrate(30);
+            saveData(); updateUI();
+        }
+
+        function resetTodayCounter() {
+            if (!appData.selectedObjectiveId) return;
+            if (confirm("Remettre à zéro pour aujourd'hui ?")) {
+                appData.progress[getTodayDate()][appData.selectedObjectiveId].count = 0;
+                saveData(); updateUI();
+            }
+        }
+
+        function addObjective() {
+            const ev = document.getElementById('new-evocation').value;
+            const tg = parseInt(document.getElementById('new-target').value);
+            if (ev.trim() === '' || isNaN(tg) || tg <= 0) return;
+
+            const newId = appData.objectives.length > 0 ? Math.max(...appData.objectives.map(o => o.id)) + 1 : 1;
+            appData.objectives.push({ id: newId, evocation: ev, target: tg });
+            appData.selectedObjectiveId = newId;
+            
+            document.getElementById('new-evocation').value = ''; document.getElementById('new-target').value = '';
+            closeModal('modal-add'); initTodayProgress(); updateUI();
+        }
+
+        function deleteObjective(id, event) {
+            event.stopPropagation();
+            if (confirm("Supprimer l'objectif ?")) {
+                appData.objectives = appData.objectives.filter(o => o.id !== id);
+                if (appData.selectedObjectiveId === id) appData.selectedObjectiveId = appData.objectives.length > 0 ? appData.objectives[0].id : null;
+                saveData(); updateUI();
+            }
+        }
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+        function buildHistoryTable() {
+            const table = document.getElementById('history-table');
+            const dates = Object.keys(appData.progress).sort().reverse(); 
+            
+            const allInvocationsMap = {};
+            dates.forEach(d => {
+                for (const objId in appData.progress[d]) {
+                    allInvocationsMap[objId] = appData.progress[d][objId].evocation;
+                }
+            });
+            appData.objectives.forEach(obj => {
+                allInvocationsMap[obj.id] = obj.evocation;
+            });
+
+            if (dates.length === 0 || Object.keys(allInvocationsMap).length === 0) {
+                table.innerHTML = "<tr><td style='text-align:center; padding:20px; color:gray;'>Aucune donnée.</td></tr>";
+                return;
+            }
+
+            let theadHTML = `<thead><tr><th>Invocations</th>`;
+            dates.forEach(d => {
+                const [yyyy, mm, dd] = d.split('-');
+                theadHTML += `<th>${dd}/${mm}</th>`;
+            });
+            theadHTML += `</tr></thead>`;
+
+            let tbodyHTML = `<tbody>`;
+            for (const objId in allInvocationsMap) {
+                const evocationName = allInvocationsMap[objId];
+                tbodyHTML += `<tr><td>${evocationName}</td>`;
+                
+                dates.forEach(d => {
+                    const dataObj = appData.progress[d]?.[objId];
+                    const currentObj = appData.objectives.find(o => o.id == objId);
+                    const target = dataObj ? dataObj.target : (currentObj ? currentObj.target : 0);
+                    const count = dataObj ? dataObj.count : 0;
+                    
+                    const scoreClass = count >= target && count > 0 ? "score-good" : (count === 0 ? "score-zero" : "");
+                    // Affichage du format "compte / objectif"
+                    tbodyHTML += `<td class="${scoreClass}">${count} / ${target}</td>`;
+                });
+                tbodyHTML += `</tr>`;
+            }
+            tbodyHTML += `</tbody>`;
+
+            table.innerHTML = theadHTML + tbodyHTML;
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(appData, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `tasbih_backup_${getTodayDate()}.json`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported.objectives && imported.progress) {
+                        appData = imported; saveData(); loadData(); updateUI(); switchView('main');
+                        alert("Données importées !");
+                    } else alert("Format invalide.");
+                } catch (err) { alert("Erreur."); }
+            };
+            reader.readAsText(file);
+        }
+
+        loadData(); updateUI();
+    </script>
+</body>
+</html>
