@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="110" fill="#121212"/>
+  <circle cx="256" cy="256" r="140" fill="none" stroke="#2c2c2c" stroke-width="24"/>
+  <!-- Perles du Tasbih -->
+  <circle cx="256" cy="116" r="22" fill="#4ade80"/>
+  <circle cx="355" cy="157" r="18" fill="#4ade80"/>
+  <circle cx="396" cy="256" r="18" fill="#4ade80"/>
+  <circle cx="355" cy="355" r="18" fill="#4ade80"/>
+  <circle cx="256" cy="396" r="18" fill="#4ade80"/>
+  <circle cx="157" cy="355" r="18" fill="#4ade80"/>
+  <circle cx="116" cy="256" r="18" fill="#4ade80"/>
+  <circle cx="157" cy="157" r="18" fill="#4ade80"/>
+  <!-- Chiffre central -->
+  <text x="256" y="275" font-family="system-ui, sans-serif" font-weight="bold" font-size="100" fill="#ffffff" text-anchor="middle">0</text>
+</svg>
