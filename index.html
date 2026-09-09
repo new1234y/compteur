@@ -2,17 +2,17 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Smart Tasbih</title>
     
-    <!-- PWA Meta tags & Manifest -->
+    <!-- PWA & Icônes (Correction iOS & Android PNG) -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#121212">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Tasbih">
-    <link rel="icon" type="image/svg+xml" href="icon.svg">
-    <link rel="apple-touch-icon" href="icon.svg">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="icon.png">
 
     <style>
         :root {
@@ -25,7 +25,24 @@
             --border-radius: 20px;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: system-ui, -apple-system, sans-serif;
+            /* Empêche la sélection de texte au double clic / tap rapide */
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            /* Supprime le délai de 300ms et empêche le zoom au double tap sur mobile */
+            touch-action: manipulation;
+        }
+
+        /* Réautoriser la sélection de texte dans les champs de saisie */
+        input {
+            -webkit-user-select: text;
+            user-select: text;
+        }
 
         body {
             background-color: var(--bg-color);
@@ -36,7 +53,6 @@
             flex-direction: column;
         }
 
-        /* Vues de l'application */
         .view {
             display: none;
             flex-direction: column;
@@ -45,7 +61,6 @@
         }
         .view.active { display: flex; }
 
-        /* --- VUE PRINCIPALE --- */
         header { display: flex; justify-content: space-between; align-items: center; padding: 20px; }
         .app-title { font-size: 20px; font-weight: bold; }
         .header-actions { display: flex; gap: 10px; align-items: center; }
@@ -99,7 +114,6 @@
             min-width: 80px; border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer;
         }
 
-        /* --- VUE HISTORIQUE --- */
         .history-header { display: flex; align-items: center; padding: 20px; background-color: var(--surface-color); border-bottom: 1px solid #333; gap: 15px; }
         .table-container { flex: 1; overflow: auto; padding: 20px; }
         
@@ -120,7 +134,6 @@
         .settings-bar { padding: 20px; display: flex; gap: 10px; background-color: var(--surface-color); border-top: 1px solid #333; }
         .btn-secondary { flex: 1; padding: 12px; background-color: var(--surface-light); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
 
-        /* --- MODAL AJOUT OBJECTIF --- */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); z-index: 100; justify-content: center; align-items: center; padding: 20px; }
         .modal.show { display: flex; }
         .modal-content { background-color: var(--surface-color); width: 100%; max-width: 400px; border-radius: var(--border-radius); padding: 25px; }
@@ -129,18 +142,11 @@
         input[type="text"], input[type="number"] { width: 100%; padding: 15px; border-radius: 10px; border: 1px solid #444; background-color: var(--surface-light); color: white; font-size: 16px; margin-bottom: 15px; }
         .btn-block { width: 100%; padding: 15px; background-color: var(--primary-color); color: #000; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; }
 
-        /* Bouton d'installation PWA */
-        #btn-install {
-            display: none;
-            background-color: var(--primary-color);
-            color: #000;
-            font-size: 18px;
-        }
+        #btn-install { display: none; background-color: var(--primary-color); color: #000; font-size: 18px; }
     </style>
 </head>
 <body>
 
-    <!-- VUE 1 : COMPTEUR PRINCIPAL -->
     <div id="view-main" class="view active">
         <header>
             <div class="app-title">Tasbih</div>
@@ -164,17 +170,14 @@
         </footer>
     </div>
 
-    <!-- VUE 2 : PAGE HISTORIQUE COMPLET -->
     <div id="view-history" class="view">
         <div class="history-header">
             <button class="btn-icon" onclick="switchView('main')" title="Retour">⬅</button>
             <div class="app-title">Historique Global</div>
         </div>
-
         <div class="table-container">
             <table class="matrix-table" id="history-table"></table>
         </div>
-
         <div class="settings-bar">
             <button class="btn-secondary" onclick="exportData()">Exporter</button>
             <input type="file" id="import-file" style="display: none;" onchange="importData(event)">
@@ -182,7 +185,6 @@
         </div>
     </div>
 
-    <!-- MODAL : Ajouter Objectif -->
     <div id="modal-add" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -196,16 +198,12 @@
     </div>
 
     <script>
-        // Enregistrement du Service Worker pour le mode Web App / Hors-ligne
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker enregistré !', reg))
-                    .catch(err => console.log('Erreur Service Worker :', err));
+                navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
             });
         }
 
-        // Gestion de l'installation "Ajouter à l'écran d'accueil"
         let deferredPrompt;
         const btnInstall = document.getElementById('btn-install');
 
@@ -218,24 +216,13 @@
         btnInstall.addEventListener('click', async () => {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    console.log('Application installée');
-                }
                 deferredPrompt = null;
                 btnInstall.style.display = 'none';
             }
         });
 
-        window.addEventListener('appinstalled', () => {
-            btnInstall.style.display = 'none';
-            console.log('Tasbih a été installé avec succès.');
-        });
-
         let appData = {
-            objectives: [
-                { id: 1, evocation: "Subhanallah", target: 33 }
-            ],
+            objectives: [{ id: 1, evocation: "Subhanallah", target: 33 }],
             selectedObjectiveId: 1,
             progress: {} 
         };
@@ -262,7 +249,6 @@
         function initTodayProgress() {
             const today = getTodayDate();
             if (!appData.progress[today]) appData.progress[today] = {};
-            
             appData.objectives.forEach(obj => {
                 if (!appData.progress[today][obj.id]) {
                     appData.progress[today][obj.id] = { evocation: obj.evocation, target: obj.target, count: 0 };
@@ -367,18 +353,16 @@
         function buildHistoryTable() {
             const table = document.getElementById('history-table');
             const dates = Object.keys(appData.progress).sort().reverse(); 
-            
             const allInvocationsMap = {};
+            
             dates.forEach(d => {
                 for (const objId in appData.progress[d]) {
                     allInvocationsMap[objId] = appData.progress[d][objId].evocation;
                 }
             });
-            appData.objectives.forEach(obj => {
-                allInvocationsMap[obj.id] = obj.evocation;
-            });
+            appData.objectives.forEach(obj => { allInvocationsMap[obj.id] = obj.evocation; });
 
-            if (dates.length === 0 || Object.keys(allInvocationsMap).length === 0) {
+            if (dates.length === 0) {
                 table.innerHTML = "<tr><td style='text-align:center; padding:20px; color:gray;'>Aucune donnée.</td></tr>";
                 return;
             }
@@ -400,14 +384,12 @@
                     const currentObj = appData.objectives.find(o => o.id == objId);
                     const target = dataObj ? dataObj.target : (currentObj ? currentObj.target : 0);
                     const count = dataObj ? dataObj.count : 0;
-                    
                     const scoreClass = count >= target && count > 0 ? "score-good" : (count === 0 ? "score-zero" : "");
                     tbodyHTML += `<td class="${scoreClass}">${count} / ${target}</td>`;
                 });
                 tbodyHTML += `</tr>`;
             }
             tbodyHTML += `</tbody>`;
-
             table.innerHTML = theadHTML + tbodyHTML;
         }
 
