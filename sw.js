@@ -1,8 +1,8 @@
-const CACHE_NAME = 'smart-tasbih-v1';
+const CACHE_NAME = 'smart-tasbih-v4';
 const urlsToCache = [
   './index.html',
   './manifest.json',
-  './icon.svg'
+  './icon.png'
 ];
 
 self.addEventListener('install', event => {
