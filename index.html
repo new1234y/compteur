@@ -5,14 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Smart Tasbih</title>
     
-    <!-- PWA & Icônes (Correction iOS & Android PNG) -->
-    <link rel="manifest" href="manifest.json">
+    <!-- Manifest dynamique injecté via JS (Zéro fichier externe requis) -->
+    <link rel="manifest" id="pwa-manifest">
     <meta name="theme-color" content="#121212">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Tasbih">
-    <link rel="apple-touch-icon" href="icon.png">
-    <link rel="icon" type="image/png" href="icon.png">
+    
+    <!-- Icône intégrée en Base64 (Compatible iOS Safari & Navigateurs) -->
+    <link rel="apple-touch-icon" id="apple-touch-icon">
+    <link rel="icon" type="image/png" id="favicon">
 
     <style>
         :root {
@@ -30,15 +32,12 @@
             margin: 0; 
             padding: 0; 
             font-family: system-ui, -apple-system, sans-serif;
-            /* Empêche la sélection de texte au double clic / tap rapide */
             -webkit-user-select: none;
             user-select: none;
             -webkit-touch-callout: none;
-            /* Supprime le délai de 300ms et empêche le zoom au double tap sur mobile */
             touch-action: manipulation;
         }
 
-        /* Réautoriser la sélection de texte dans les champs de saisie */
         input {
             -webkit-user-select: text;
             user-select: text;
@@ -198,6 +197,53 @@
     </div>
 
     <script>
+        // Génération dynamique de l'icône et du manifeste pour que tout soit 100% autonome
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+
+        // Fond et cadre du logo
+        ctx.fillStyle = '#121212';
+        ctx.fillRect(0, 0, 512, 512);
+        ctx.lineWidth = 24;
+        ctx.strokeStyle = '#2c2c2c';
+        ctx.beginPath();
+        ctx.roundRect(40, 40, 432, 432, 110);
+        ctx.stroke();
+
+        // Perles du Tasbih
+        const centerX = 256, centerY = 256, radius = 140, numBeads = 8;
+        for (let i = 0; i < numBeads; i++) {
+            const angle = i * (2 * Math.PI / numBeads) - Math.PI / 2;
+            const bx = centerX + radius * Math.cos(angle);
+            const by = centerY + radius * Math.sin(angle);
+            ctx.fillStyle = '#4ade80';
+            ctx.beginPath();
+            ctx.arc(bx, by, 22, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        const iconDataUrl = canvas.toDataURL('image/png');
+
+        // Assigner l'icône aux balises du document
+        document.getElementById('apple-touch-icon').href = iconDataUrl;
+        document.getElementById('favicon').href = iconDataUrl;
+
+        // Création dynamique du Manifest PWA
+        const manifestObj = {
+            name: "Smart Tasbih",
+            short_name: "Tasbih",
+            start_url: "./index.html",
+            display: "standalone",
+            background_color: "#121212",
+            theme_color: "#121212",
+            icons: [{ src: iconDataUrl, sizes: "512x512", type: "image/png", purpose: "any maskable" }]
+        };
+        const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
+        document.getElementById('pwa-manifest').href = URL.createObjectURL(manifestBlob);
+
+        // Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
